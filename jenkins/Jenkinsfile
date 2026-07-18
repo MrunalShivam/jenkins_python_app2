@@ -1,0 +1,59 @@
+pipeline {
+
+    agent any
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                dir('app') {
+                    sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install -r requirements.txt
+                    '''
+                }
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                dir('app') {
+                    sh '''
+                    . venv/bin/activate
+                    pytest
+                    '''
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                dir('app') {
+                    sh 'docker build -t flask-app .'
+                }
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                sh '''
+                docker stop flask-app-container || true
+                docker rm flask-app-container || true
+
+                docker run -d \
+                --name flask-app-container \
+                -p 5002:5000 \
+                flask-app
+                '''
+            }
+        }
+
+    }
+}
